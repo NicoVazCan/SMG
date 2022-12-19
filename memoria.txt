@@ -1,0 +1,26 @@
+
+S:
+		CODE SEP term
+
+term:
+	|	dataTerm term
+	| stateTerm term
+	| actionTerm term
+	| arcTerm term
+
+dataTerm:
+		DATA NAME LBRACE CODE RBRACE
+
+stateTerm:
+		STATE NAME LBRACE CODE RBRACE
+
+actionTerm:
+		ACTION NAME LBRACE CODE RBRACE
+
+arcTerm:
+		NAME ARROW NAME LBRACE actions RBRACE
+
+actions:
+		NAME COMMA actions
+	| NAME COMMA
+	| NAME
