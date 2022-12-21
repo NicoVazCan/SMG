@@ -51,16 +51,17 @@ struct sm_VStates
   sm_State *vStates;
 };
 
-struct sm_ConjSmIndep
+struct sm_DepGrp
 {
   unsigned int sm_id;
-  struct *sm_ConjSmIndep next;
+  struct sm_DepGrp *next;
 };
 
-struct sm_CSIs
+struct sm_Pipeline
 {
-  struct *sm_ConjSmIndep pCSI;
-  struct sm_CSIs *next;
+  unsigned int sm_dep;
+  struct sm_DepGrp *pDepGrps;
+  struct sm_Pipeline *next;
 };
 
 int sm_create

@@ -1,5 +1,5 @@
-#ifndef SM0
-#define SM0 0
+#ifndef sm_id_sm0
+#define sm_id_sm0 0
 
 #include "test.h"
 
