@@ -46,8 +46,8 @@ struct sm_Insts
 typedef void (*sm_State)
 (
   struct sm_Inst *sm_pInst,
-  size_t sm_nInst,
-  struct sm_Insts *vpInsts[static sm_nInst]
+  size_t sm_n,
+  struct sm_Insts *vpInsts[static sm_n]
 );
 
 
@@ -86,8 +86,8 @@ int sm_next_state
 
 int sm_create
 (
-  size_t sm_nInst,
-  struct sm_Insts *vpInsts[static sm_nInst],
+  size_t sm_n,
+  struct sm_Insts *vpInsts[static sm_n],
   unsigned int sm_id,
   struct sm_Inst **ppInst
 );
@@ -97,8 +97,8 @@ int sm_create
 
 int sm_destroy
 (
-  size_t sm_nInst,
-  struct sm_Insts *vpInsts[static sm_nInst],
+  size_t sm_n,
+  struct sm_Insts *vpInsts[static sm_n],
   unsigned int sm_id,
   struct sm_Inst *pInst
 );
@@ -121,12 +121,17 @@ void sm_closePipeline(struct sm_Pipeline **sm_ppPl);
 
 // Bucle para ejecutar el pipeline de SM hasta que no quede ninguna (USO INTERNO)
 
-void sm_loop
+void sm_innerLoop
 (
-  size_t sm_nInst,
-  sm_State *vvStates[static sm_nInst],
-  struct sm_Insts *sm_vpInsts[static sm_nInst],
+  size_t sm_n,
+  sm_State *vvStates[static sm_n],
+  struct sm_Insts *sm_vpInsts[static sm_n],
   struct sm_Pipeline *sm_pl
 );
+
+
+// Bucle de SM
+
+int sm_loop(size_t sm_n, struct sm_Insts *vpInsts[static sm_n]);
 
 #endif

@@ -48,8 +48,8 @@ int sm_next_state
 
 int sm_create
 (
-  size_t sm_nInst,
-  struct sm_Insts *vpInsts[static sm_nInst],
+  size_t sm_n,
+  struct sm_Insts *vpInsts[static sm_n],
   unsigned int sm_id,
   struct sm_Inst **ppInst
 )
@@ -75,8 +75,8 @@ int instcmp(struct sm_Insts *pInsts, struct sm_Inst *pInst)
 
 int sm_destroy
 (
-  size_t sm_nInst,
-  struct sm_Insts *vpInsts[static sm_nInst],
+  size_t sm_n,
+  struct sm_Insts *vpInsts[static sm_n],
   unsigned int sm_id,
   struct sm_Inst *pInst
 )
@@ -104,9 +104,9 @@ int sm_destroy
 
 static void sm_update
 (
-  size_t sm_nInst,
-  sm_State *vvStates[static sm_nInst],
-  struct sm_Insts *sm_vpInsts[static sm_nInst],
+  size_t sm_n,
+  sm_State *vvStates[static sm_n],
+  struct sm_Insts *sm_vpInsts[static sm_n],
   struct sm_Pipeline *sm_pl
 )
 {
@@ -136,7 +136,7 @@ static void sm_update
                 vvStates[memberDG->sm_id][sm_pInsts->inst.state-1]
                 (
                   &sm_pInsts->inst,
-                  sm_nInst,
+                  sm_n,
                   sm_vpInsts
                 );
             }
@@ -147,11 +147,11 @@ static void sm_update
   );
 }
 
-void sm_loop
+void sm_innerLoop
 (
-  size_t sm_nInst,
-  sm_State *vvStates[static sm_nInst],
-  struct sm_Insts *sm_vpInsts[static sm_nInst],
+  size_t sm_n,
+  sm_State *vvStates[static sm_n],
+  struct sm_Insts *sm_vpInsts[static sm_n],
   struct sm_Pipeline *sm_pl
 )
 {
@@ -159,11 +159,11 @@ void sm_loop
 
   while (insts)
   {
-    for (int i = 0; insts && i < sm_nInst; ++i)
+    for (int i = 0; insts && i < sm_n; ++i)
       insts = sm_vpInsts[i] != NULL;
 
     if (insts)
-      sm_update(sm_nInst, vvStates, sm_vpInsts, sm_pl);
+      sm_update(sm_n, vvStates, sm_vpInsts, sm_pl);
 
     sleep(1);
   }
