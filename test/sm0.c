@@ -4,8 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-unsigned int sm_dep_sm0;
-
 
 static void sm_state0
 (
@@ -17,6 +15,8 @@ static void sm_state0
   struct sm0 *sm_this = sm_pInst->pdata;
 
   printf("%s: %d\n", __func__, sm_this->i);
+
+  act0_sm0(sm_pInst);
 }
 
 static void sm_state1
@@ -29,9 +29,12 @@ static void sm_state1
   struct sm0 *sm_this = sm_pInst->pdata;
 
   printf("%s: %d\n", __func__, sm_this->i);
+
+  close_sm0(sm_pInst);
+  sm_destroy(sm_nInst, sm_vpInsts, SM_ID_sm0, sm_pInst);
 }
 
-static sm_State sm_vStates[2] = {sm_state0, sm_state1};
+sm_State sm_vStates_sm0[2] = {sm_state0, sm_state1};
 
 
 static unsigned int vArcs0[1] = {0}, vArcs1[1] = {1}, vArcs2[1] = {2};
@@ -86,13 +89,4 @@ void close_sm0(struct sm_Inst *sm_pInst)
   printf("%s\n", __func__);
 
   sm_pInst->pdata = sm_this;
-}
-
-
-void sm0(struct sm_VStates *sm_pvStates)
-{
-  sm_dep_sm0 = 0;
-
-  sm_pvStates->len = 2;
-  sm_pvStates->vStates = sm_vStates;
 }

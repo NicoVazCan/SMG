@@ -5,11 +5,6 @@
 
 #include "sglib.h"
 
-struct sm_Inst
-{
-  unsigned int state;
-  void *pdata;
-};
 
 struct sm_VArcs
 {
@@ -24,19 +19,18 @@ struct sm_ArcTable
   unsigned int *row_i;
 };
 
+
+struct sm_Inst
+{
+  unsigned int state;
+  void *pdata;
+};
+
 struct sm_Insts
 {
   struct sm_Inst inst;
   struct sm_Insts *next;
 };
-
-int sm_next_state
-(
-  const struct sm_ArcTable *pTb,
-  unsigned int state,
-  unsigned int act,
-  unsigned int *nextState
-);
 
 typedef void (*sm_State)
 (
@@ -44,12 +38,6 @@ typedef void (*sm_State)
   size_t sm_nInst,
   struct sm_Insts *vpInsts[static sm_nInst]
 );
-
-struct sm_VStates
-{
-  size_t len;
-  sm_State *vStates;
-};
 
 struct sm_DepGrp
 {
@@ -63,6 +51,16 @@ struct sm_Pipeline
   struct sm_DepGrp *pDepGrps;
   struct sm_Pipeline *next;
 };
+
+
+int sm_next_state
+(
+  const struct sm_ArcTable *pTb,
+  unsigned int state,
+  unsigned int act,
+  unsigned int *nextState
+);
+
 
 int sm_create
 (

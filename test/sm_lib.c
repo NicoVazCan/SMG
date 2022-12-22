@@ -1,9 +1,10 @@
-#include "test.h"
+#include "sm_lib.h"
 
 #include "sm0.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 static int intcmp(int n1, int n2) { return n1 == n2? 0: n1 > n2? 1: -1; }
 
@@ -66,10 +67,10 @@ int sm_create
   return 0;
 }
 
-int instcmp(struct sm_Insts *pInsts0, struct sm_Insts *pInsts1)
+int instcmp(struct sm_Insts *pInsts, struct sm_Inst *pInst)
 {
-  return &pInsts0->inst == &pInsts1->inst? 0:
-         &pInsts0->inst > &pInsts1->inst? 1: -1;
+  return &pInsts->inst == pInst? 0:
+         &pInsts->inst > pInst? 1: -1;
 }
 
 int sm_destroy
@@ -82,12 +83,13 @@ int sm_destroy
 {
   if (pInst->state != 0) return -1;
 
-  struct sm_Insts *member = NULL, elem = {*pInst, NULL};
+  struct sm_Insts *member = NULL;
+
 
   SGLIB_LIST_DELETE_IF_MEMBER(
     struct sm_Insts,
     vpInsts[sm_id],
-    &elem,
+    pInst,
     instcmp,
     next,
     member
@@ -103,7 +105,7 @@ int sm_destroy
 static void sm_update
 (
   size_t sm_nInst,
-  struct sm_VStates vStates[static sm_nInst],
+  sm_State *vvStates[static sm_nInst],
   struct sm_Insts *sm_vpInsts[static sm_nInst],
   struct sm_Pipeline *sm_pl
 )
@@ -131,7 +133,7 @@ static void sm_update
             next,
             {
               if (sm_pInsts->inst.state)
-                vStates[memberDG->sm_id].vStates[sm_pInsts->inst.state-1]
+                vvStates[memberDG->sm_id][sm_pInsts->inst.state-1]
                 (
                   &sm_pInsts->inst,
                   sm_nInst,
@@ -143,6 +145,28 @@ static void sm_update
       );
     }
   );
+}
+
+static void sm_loop
+(
+  size_t sm_nInst,
+  sm_State *vvStates[static sm_nInst],
+  struct sm_Insts *sm_vpInsts[static sm_nInst],
+  struct sm_Pipeline *sm_pl
+)
+{
+  _Bool insts = 1;
+
+  while (insts)
+  {
+    for (int i = 0; insts && i < sm_nInst; ++i)
+      insts = sm_vpInsts[i] != NULL;
+
+    if (insts)
+      sm_update(sm_nInst, vvStates, sm_vpInsts, sm_pl);
+
+    sleep(1);
+  }
 }
 
 static int depcmp(struct sm_DepGrp *pDG0, struct sm_DepGrp *pDG1)
@@ -227,21 +251,20 @@ static void sm_closePipeline(struct sm_Pipeline **sm_ppPl)
 int main(int argc, char const *argv[])
 {
   struct sm_Insts *vpInsts[1] = {NULL};
-  struct sm_Inst *psm0 = NULL;
+  struct sm_Inst *psm00 = NULL, *psm01 = NULL;
   struct sm_Pipeline *pPL = NULL;
-  struct sm_VStates vStates[1];
+  sm_State *vvStates[1];
   
-  sm0(vStates);
+  vvStates[0] = sm_vStates_sm0;
 
-  sm_addToPipeline(&pPL, sm_id_sm0, sm_dep_sm0);
+  sm_addToPipeline(&pPL, SM_ID_sm0, SM_DEP_sm0);
 
-  sm_create(1, vpInsts, sm_id_sm0, &psm0);
-  init_sm0(psm0);
-  sm_update(1, vStates, vpInsts, pPL);
-  act0_sm0(psm0);
-  sm_update(1, vStates, vpInsts, pPL);
-  close_sm0(psm0);
-  sm_destroy(1, vpInsts, sm_id_sm0, psm0);
+  sm_create(1, vpInsts, SM_ID_sm0, &psm00);
+  init_sm0(psm00);
+  sm_create(1, vpInsts, SM_ID_sm0, &psm01);
+  init_sm0(psm01);
+  sm_loop(1, vvStates, vpInsts, pPL);
+  
 
   sm_closePipeline(&pPL);
 
