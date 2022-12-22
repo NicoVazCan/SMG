@@ -2,9 +2,9 @@
 
 #include "sm0.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
 
 static int intcmp(int n1, int n2) { return n1 == n2? 0: n1 > n2? 1: -1; }
 
@@ -147,7 +147,7 @@ static void sm_update
   );
 }
 
-static void sm_loop
+void sm_loop
 (
   size_t sm_nInst,
   sm_State *vvStates[static sm_nInst],
@@ -179,7 +179,8 @@ static int plcmp(struct sm_Pipeline *pPL0, struct sm_Pipeline *pPL1)
   return pPL0->sm_dep == pPL1->sm_dep? 0: pPL0->sm_dep > pPL1->sm_dep? 1: -1;
 }
 
-static void sm_addToPipeline(
+void sm_addToPipeline
+(
   struct sm_Pipeline **sm_ppPl,
   unsigned int sm_id,
   unsigned int sm_dep
@@ -223,7 +224,7 @@ static void sm_addToPipeline(
   );
 }
 
-static void sm_closePipeline(struct sm_Pipeline **sm_ppPl)
+void sm_closePipeline(struct sm_Pipeline **sm_ppPl)
 {
   struct sm_Pipeline *pPL;
   struct sm_DepGrp *pDG;
@@ -246,27 +247,4 @@ static void sm_closePipeline(struct sm_Pipeline **sm_ppPl)
   );
 
   *sm_ppPl = NULL;
-}
-
-int main(int argc, char const *argv[])
-{
-  struct sm_Insts *vpInsts[1] = {NULL};
-  struct sm_Inst *psm00 = NULL, *psm01 = NULL;
-  struct sm_Pipeline *pPL = NULL;
-  sm_State *vvStates[1];
-  
-  vvStates[0] = sm_vStates_sm0;
-
-  sm_addToPipeline(&pPL, SM_ID_sm0, SM_DEP_sm0);
-
-  sm_create(1, vpInsts, SM_ID_sm0, &psm00);
-  init_sm0(psm00);
-  sm_create(1, vpInsts, SM_ID_sm0, &psm01);
-  init_sm0(psm01);
-  sm_loop(1, vvStates, vpInsts, pPL);
-  
-
-  sm_closePipeline(&pPL);
-
-  return 0;
 }
