@@ -1,11 +1,10 @@
 #include "sm0.h"
 
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 
-static void sm_state0
+static void state0
 (
   struct sm_Inst *sm_pInst,
   size_t sm_nInst,
@@ -19,7 +18,7 @@ static void sm_state0
   act0_sm0(sm_pInst);
 }
 
-static void sm_state1
+static void state1
 (
   struct sm_Inst *sm_pInst,
   size_t sm_nInst,
@@ -34,13 +33,13 @@ static void sm_state1
   sm_destroy(sm_nInst, sm_vpInsts, SM_ID_sm0, sm_pInst);
 }
 
-sm_State sm_vStates_sm0[2] = {sm_state0, sm_state1};
+sm_State sm_vStates_sm0[2] = {state0, state1};
 
 
-static unsigned int vArcs0[1] = {0}, vArcs1[1] = {1}, vArcs2[1] = {2};
-static struct sm_VArcs arcs[3] = {{1, vArcs0}, {1, vArcs1}, {1, vArcs2}};
+static unsigned int acts0[1] = {0}, acts1[1] = {1}, acts2[1] = {2};
+static struct sm_VActs vArcs[3] = {{1, acts0}, {1, acts1}, {1, acts2}};
 static unsigned int col_i[3] = {1, 2, 0}, row_i[4] = {0, 1, 2, 3};
-static struct sm_ArcTable tb = {arcs, col_i, row_i};
+static struct sm_ArcTable tb = {vArcs, col_i, row_i};
 
 
 void init_sm0(struct sm_Inst *sm_pInst)
@@ -48,8 +47,9 @@ void init_sm0(struct sm_Inst *sm_pInst)
   struct sm0 *sm_this = sm_pInst->pdata;
   unsigned int next;
 
-  if (!sm_next_state(&tb, sm_pInst->state, 0, &next));
+  if (!sm_next_state(&tb, sm_pInst->state, 0, &next))
     sm_pInst->state = next;
+  else return;
 
   sm_this = malloc(sizeof(struct sm0));
 
@@ -65,10 +65,11 @@ void act0_sm0(struct sm_Inst *sm_pInst)
   struct sm0 *sm_this = sm_pInst->pdata;
   unsigned int next;
 
-  if (!sm_next_state(&tb, sm_pInst->state, 1, &next));
+  if (!sm_next_state(&tb, sm_pInst->state, 1, &next))
     sm_pInst->state = next;
+  else return;
 
-  sm_this->i = 0;
+  sm_this->i = 1;
 
   printf("%s\n", __func__);
 
@@ -80,8 +81,9 @@ void close_sm0(struct sm_Inst *sm_pInst)
   struct sm0 *sm_this = sm_pInst->pdata;
   unsigned int next;
 
-  if (!sm_next_state(&tb, sm_pInst->state, 2, &next));
+  if (!sm_next_state(&tb, sm_pInst->state, 2, &next))
     sm_pInst->state = next;
+  else return;
 
   free(sm_this);
   sm_this = NULL;

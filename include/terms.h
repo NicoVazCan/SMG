@@ -3,12 +3,16 @@
 
 #include <stdio.h>
 
-#define DATA_TM   0
-#define STATE_TM  1
-#define ACT_TM    2
-#define ARC_TM    3
-#define CODE_TM   4
-#define EXT_TM    5
+enum IdTerm
+{
+  DATA_TM,
+  STATE_TM,
+  ACT_TM,
+  ARC_TM,
+  IMPORT_TM,
+  CODE_TM,
+  EXT_TM
+};
 
 struct Ids
 {
@@ -22,7 +26,6 @@ struct ExtTm
   {
     struct DataTm
     {
-      char *id;
       char *code;
     } dataTm;
 
@@ -35,6 +38,7 @@ struct ExtTm
     struct ActTm
     {
       char *id;
+      char *args;
       char *code;
     } actTm;
 
@@ -44,9 +48,14 @@ struct ExtTm
       char *id1;
       struct Ids *pActs;
     } arcTm;
+
+    struct ImportTm
+    {
+      char *id;
+    } importTm;
   } extTm;
 
-  int nTm;
+  enum IdTerm id;
 };
 
 struct ExtTms
@@ -63,7 +72,7 @@ struct Tm
     struct ExtTms *pExtTms;
   } tm;
 
-  int nTm;
+  enum IdTerm id;
 };
 
 struct Tms
@@ -72,6 +81,8 @@ struct Tms
   struct Tms *next;
 };
 
-int terms_eval(struct Tms *pTms, FILE *out);
+int terms_eval(struct Tms *pTms, unsigned int sm_id, char *sm_name, FILE *sm_h, FILE *sm_c);
+
+void terms_free(struct Tms **ppTms);
 
 #endif

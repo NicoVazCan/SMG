@@ -18,4 +18,4 @@ build:
 	mv src/smg .
 
 clean:
-	rm src/*.o y.tab.h
+	rm src/*.o y.tab.h *.c *.h

@@ -27,7 +27,7 @@ int sm_next_state
   {
     SGLIB_ARRAY_BINARY_SEARCH(
       int,
-      pTb->pArcs[r].vArcs,
+      pTb->pArcs[r].vActs,
       0,
       (pTb->pArcs[r].len-1),
       act,

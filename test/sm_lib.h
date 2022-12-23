@@ -12,15 +12,15 @@
 
 // Tabla de arcos entre estados (USO INTERNO)
 
-struct sm_VArcs
+struct sm_VActs
 {
   size_t len;
-  unsigned int *vArcs;
+  unsigned int *vActs;
 };
 
 struct sm_ArcTable
 {
-  struct sm_VArcs *pArcs;
+  struct sm_VActs *pArcs;
   unsigned int *col_i;
   unsigned int *row_i;
 };
@@ -82,28 +82,6 @@ int sm_next_state
 );
 
 
-// Crea y anhade al grupo de colecciones de instancias una nueva
-
-int sm_create
-(
-  size_t sm_n,
-  struct sm_Insts *vpInsts[static sm_n],
-  unsigned int sm_id,
-  struct sm_Inst **ppInst
-);
-
-
-// Destruye y elimina del grupo de colecciones de instancias una
-
-int sm_destroy
-(
-  size_t sm_n,
-  struct sm_Insts *vpInsts[static sm_n],
-  unsigned int sm_id,
-  struct sm_Inst *pInst
-);
-
-
 // Añade al pipeline una nueva SM segun sus dependencias con otras (USO INTERNO)
 
 void sm_addToPipeline
@@ -127,6 +105,28 @@ void sm_innerLoop
   sm_State *vvStates[static sm_n],
   struct sm_Insts *sm_vpInsts[static sm_n],
   struct sm_Pipeline *sm_pl
+);
+
+
+// Crea y anhade al grupo de colecciones de instancias una nueva
+
+int sm_create
+(
+  size_t sm_n,
+  struct sm_Insts *vpInsts[static sm_n],
+  unsigned int sm_id,
+  struct sm_Inst **ppInst
+);
+
+
+// Destruye y elimina del grupo de colecciones de instancias una
+
+int sm_destroy
+(
+  size_t sm_n,
+  struct sm_Insts *vpInsts[static sm_n],
+  unsigned int sm_id,
+  struct sm_Inst *pInst
 );
 
 

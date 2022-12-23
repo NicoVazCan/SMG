@@ -1,0 +1,58 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+$
+data
+{
+  int i;
+}
+
+state state0
+{
+  struct sm0 *sm_this = sm_pInst->pdata;
+
+  printf("%s: %d\n", __func__, sm_this->i);
+
+  act0_sm0(sm_pInst);
+}
+
+state state1
+{
+  struct sm0 *sm_this = sm_pInst->pdata;
+
+  printf("%s: %d\n", __func__, sm_this->i);
+
+  close_sm0(sm_pInst);
+  sm_destroy(sm_nInst, sm_vpInsts, SM_ID_sm0, sm_pInst);
+}
+
+act init_sm0 ()
+{
+  sm_this = malloc(sizeof(struct sm0));
+
+  sm_this->i = 0;
+
+  printf("%s\n", __func__);
+}
+
+act act0_sm0 ()
+{
+  sm_this->i = 0;
+
+  printf("%s\n", __func__);
+}
+
+act close_sm0 ()
+{
+  free(sm_this);
+  sm_this = NULL;
+
+  printf("%s\n", __func__);
+}
+
+-> state0 [init_sm0]
+
+state0 -> state1 [act0_sm0]
+
+state1 -> [close_sm0]
+$
