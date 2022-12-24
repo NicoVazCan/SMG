@@ -72,7 +72,7 @@ int terms_eval(struct Tms *pTms, unsigned int sm_id, char *sm_name, FILE *sm_h, 
               fprintf(
                 sm_h,
                 "struct %s\n"
-                "{%s}\n"
+                "{%s};\n"
                 "\n",
                 sm_name,
                 memberExtTms->pExtTm->extTm.dataTm.code

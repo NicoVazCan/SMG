@@ -11,7 +11,7 @@
 }
 %}
 
-spa     ([ \t\r\n\b]|{com})+
+spa     [ \t\r\n\b]
 com     ("/*""/"*([^*/]|[^*]"/"|"*"[^/])*"*"*"*/")|("//".*)
 str     "\""[^"]*"\""
 
@@ -21,10 +21,9 @@ state   state
 act     act
 arrow   "->"
 comma   ,
+dot     .
 lBrack "["
 rBrack "]"
-code   "{"[^}]*"}"
-args   "("[^)]*")" 
 
 letter  [a-zA-Z_]
 digit   [0-9]
@@ -32,7 +31,7 @@ letdig  {letter}|{digit}
 
 id      {letter}{letdig}*
 
-%x E
+%x E C M
 
 %%
 
@@ -41,11 +40,10 @@ id      {letter}{letdig}*
 
 [^$]*         yylval.s = yytext; TRY_STRDUP(yylval.s); return CODE;
 
-{str}|{com}   yymore();
+{str}|{com}|{spa}+ {
+  yymore();
+}
 
-
-
-<E>{spa}
 
 <E>{data}     return DATA;
 <E>{state}    return STATE;
@@ -53,29 +51,59 @@ id      {letter}{letdig}*
 <E>{import}   return IMPORT;
 <E>{arrow}    return ARROW;
 <E>{comma}    return COMMA;
-<E>{lBrack}   return L_BRACK;
-<E>{rBrack}   return R_BRACK;
-<E>{code}     {
-  yylval.s = yytext+1;
-  TRY_STRDUP(yylval.s);
-  yylval.s[yyleng-2] = '\0'; 
-  return CODE;
-}
-<E>{args}     {
-  yylval.s = yytext+1;
-  TRY_STRDUP(yylval.s);
-  yylval.s[yyleng-2] = '\0'; 
-  return ARGS;
-}
+<E>"$("       BEGIN(C); puts("BEG_ARGS"); return BEG_ARGS;
+<E>"${"       BEGIN(C); puts("BEG_CODE"); return BEG_CODE;
+<E>"$["       return BEG_LIST;
+<E>"$]"       return END_LIST;
 <E>{digit}    yylval.d = atoi(yytext); return DIGIT;
 <E>{id}       yylval.s = yytext; TRY_STRDUP(yylval.s); return ID;
 
-
 <E>"$"        BEGIN(INITIAL); return END_EXT;
+
+<E>{com}|{spa}+
 
 <E>(.|"\n")   {
   fprintf(stderr, "Error léxico: token \"%s\" no reconocido\n", yytext); 
   exit(EXIT_FAILURE);
+}
+
+
+<C>"$)"       BEGIN(E); return END_ARGS;
+<C>"$}"       BEGIN(E); return END_CODE;
+<C>"$"([^)}][^$]*)?"$" {
+  puts("METHOD_C");
+  BEGIN(M);
+  yylval.s = yytext+1;
+  TRY_STRDUP(yylval.s);
+  yylval.s[yyleng-2] = '\0';
+  return CODE;
+}
+
+<C>[^$]* {
+              yylval.s = yytext; TRY_STRDUP(yylval.s); return CODE;
+}
+
+<C>{str}|{com}|{spa}+ {
+  yymore();
+}
+
+
+<M>{arrow}{id} {
+  yylval.s = yytext+2; TRY_STRDUP(yylval.s); return ID;
+}
+<M>{dot}{id} {
+  BEGIN(C); yylval.s = yytext+1; TRY_STRDUP(yylval.s); return ID;
+}
+<M>"$("([^$][^)]|"$"[^)]|[^$]")")*(.|"\n")?"$)" {
+  BEGIN(C);
+  yylval.s = yytext+3;
+  TRY_STRDUP(yylval.s);
+  yylval.s[yyleng-5] = '\0';
+  return CODE;
+}
+
+<M>{str}|{com}|{spa}+ {
+  yymore();
 }
 
 %%
