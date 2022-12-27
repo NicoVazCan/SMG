@@ -29,6 +29,7 @@ int main(int argc, char const *argv[])
   FILE *sm_loop = NULL, *sm = NULL, *h = NULL, *c = NULL;
   struct Files *files = NULL, *elem = NULL, value;
   struct Tms *pTms = NULL;
+  struct Tm *pTm = NULL;
   unsigned int sm_id = 0;
   
   {
@@ -216,17 +217,74 @@ int main(int argc, char const *argv[])
 
   sm_loop = fopen("sm_loop.c", "w");
 
-  SGLIB_SORTED_LIST_MAP_ON_ELEMENTS(struct Files, files, elem, next,
+  fprintf(
+    sm_loop,
+    "#include <sm_lib.h>\n"
+    "#include <stddef.h>\n"
+    "\n"
+  );
+
+  SGLIB_SORTED_LIST_MAP_ON_ELEMENTS(
+    struct Files,
+    files,
+    elem,
+    next,
+    fprintf(
+      sm_loop,
+      "#include \"%s.h\"\n",
+      elem->name
+    )
+  );
+
+  fprintf(
+    sm_loop,
+    "\n"
+    "int sm_loop(size_t sm_n, struct sm_Insts *vpInsts[static sm_n])\n"
+    "{\n"
+    "  struct sm_Pipeline *pPL = NULL;\n"
+    "  sm_State const *vvStates[sm_n];\n"
+    "\n"
+  );
+
+  SGLIB_SORTED_LIST_MAP_ON_ELEMENTS(
+    struct Files,
+    files,
+    elem,
+    next,
     {
       yyin = elem->sm;
-      yyparse(&pTms);
+      yyparse(&pTm);
       terms_eval(pTms, sm_id, elem->name, elem->h, elem->c);
       terms_free(&pTms);
       sm_id++;
+
+      fprintf(
+        sm_loop,
+        "  vvStates[SM_ID_%s] = sm_vStates_%s;\n"
+        "  sm_addToPipeline(&pPL, SM_ID_%s, SM_DEP_%s);\n"
+        "  \n",
+        elem->name,
+        elem->name,
+        elem->name,
+        elem->name
+      );
     }
   );
 
-  SGLIB_SORTED_LIST_MAP_ON_ELEMENTS(struct Files, files, elem, next,
+  fprintf(
+    sm_loop,
+    "\n"
+    "  sm_innerLoop(sm_n, vvStates, vpInsts, pPL);\n"
+    "  sm_closePipeline(&pPL);\n"
+    "\n"
+    "  return 0;\n"
+    "}\n"
+  );
+
+  SGLIB_SORTED_LIST_MAP_ON_ELEMENTS(struct Files,
+    files,
+    elem,
+    next,
     {
       free(elem->name);
       if (elem->sm != stdin) fclose(elem->sm);

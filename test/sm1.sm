@@ -1,0 +1,83 @@
+#include <stdio.h>
+
+$
+data
+${
+  int maxi0, maxi1;
+$}
+
+state unoOdos
+${
+  int d;
+  printf("Especificar uno o dos números?\n");
+
+  scanf("%d", &d);
+
+  if(d)
+    $sm_this$->dos$($);
+  else
+    $sm_this$->uno$($);
+
+$}
+
+state uno
+${
+  printf("Especificar un número\n");
+  scanf("%d", &$sm_this$->sm1.maxi0);
+  $sm_this$->sm1.maxi1 = $sm_this$->sm1.maxi0;
+
+  $sm_this$->done$($);
+$}
+
+state dos
+${
+  printf("Especificar dos números\n");
+  scanf("%d", &$sm_this$->sm1.maxi0);
+  scanf("%d", &$sm_this$->sm1.maxi1);
+
+  $sm_this$->done$($);
+$}
+
+state done
+${
+  close(sm_this);
+  sm_destroy(sm_nInst, sm_vpInsts, SM_ID_sm1, sm_this);
+
+  $sm_this$->close$($);
+$}
+
+act init_sm1 $( $)
+${
+  printf("%s\n", __func__);
+$}
+
+act uno $( $)
+${
+  printf("%s\n", __func__);
+$}
+
+act dos $( $)
+${
+  printf("%s\n", __func__);
+$}
+
+act done $( $)
+${
+  printf("%s\n", __func__);
+$}
+
+act close $( $)
+${
+  printf("%s\n", __func__);
+$}
+
+-> unoOdos $[init_sm1$]
+
+unoOdos -> uno $[uno$]
+unoOdos -> dos $[dos$]
+
+uno -> done $[done$]
+dos -> done $[done$]
+
+done -> $[close$]
+$

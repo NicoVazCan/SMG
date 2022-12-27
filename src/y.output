@@ -1,0 +1,165 @@
+Terminales no usados en la gramática
+
+    STATE
+    ACT
+    ARC
+    ARROW
+    COMMA
+    IMPORT
+    L_PAREN
+    R_PAREN
+
+
+La regla es inútil debido a los conflictos
+
+    2 terms: term
+
+
+Estado 4 conflictos: 1 desplazamiento/reducción
+
+
+Gramática
+
+    0 $accept: S DATA
+
+    1 S: terms
+
+    2 terms: term
+    3      | term terms
+
+    4 term: dataTerm
+
+    5 dataTerm: DATA L_BRACE CODE R_BRACE
+
+
+Terminales con las reglas donde aparecen
+
+    DATA (0) 0 5
+    STATE (1)
+    ACT (2)
+    ARC (3)
+    ARROW (4)
+    COMMA (5)
+    IMPORT (6)
+    L_PAREN (7)
+    R_PAREN (8)
+    L_BRACE (9) 5
+    R_BRACE (10) 5
+    CODE <s> (11) 5
+    error (256)
+
+
+No terminales con las reglas donde aparecen
+
+    $accept (14)
+        on left: 0
+    S (15)
+        on left: 1
+        on right: 0
+    terms <pTms> (16)
+        on left: 2 3
+        on right: 1 3
+    term <pTm> (17)
+        on left: 4
+        on right: 2 3
+    dataTerm <pTm> (18)
+        on left: 5
+        on right: 4
+
+
+Estado 0
+
+    0 $accept: . S DATA
+    1 S: . terms
+    2 terms: . term
+    3      | . term terms
+    4 term: . dataTerm
+    5 dataTerm: . DATA L_BRACE CODE R_BRACE
+
+    DATA  desplazar e ir al estado 1
+
+    S         ir al estado 2
+    terms     ir al estado 3
+    term      ir al estado 4
+    dataTerm  ir al estado 5
+
+
+Estado 1
+
+    5 dataTerm: DATA . L_BRACE CODE R_BRACE
+
+    L_BRACE  desplazar e ir al estado 6
+
+
+Estado 2
+
+    0 $accept: S . DATA
+
+    DATA  desplazar e ir al estado 7
+
+
+Estado 3
+
+    1 S: terms .
+
+    $default  reduce usando la regla 1 (S)
+
+
+Estado 4
+
+    2 terms: . term
+    2      | term .  [DATA]
+    3      | . term terms
+    3      | term . terms
+    4 term: . dataTerm
+    5 dataTerm: . DATA L_BRACE CODE R_BRACE
+
+    DATA  desplazar e ir al estado 1
+
+    DATA  [reduce usando la regla 2 (terms)]
+
+    terms     ir al estado 8
+    term      ir al estado 4
+    dataTerm  ir al estado 5
+
+
+Estado 5
+
+    4 term: dataTerm .
+
+    $default  reduce usando la regla 4 (term)
+
+
+Estado 6
+
+    5 dataTerm: DATA L_BRACE . CODE R_BRACE
+
+    CODE  desplazar e ir al estado 9
+
+
+Estado 7
+
+    0 $accept: S DATA .
+
+    $default  aceptar
+
+
+Estado 8
+
+    3 terms: term terms .
+
+    $default  reduce usando la regla 3 (terms)
+
+
+Estado 9
+
+    5 dataTerm: DATA L_BRACE CODE . R_BRACE
+
+    R_BRACE  desplazar e ir al estado 10
+
+
+Estado 10
+
+    5 dataTerm: DATA L_BRACE CODE R_BRACE .
+
+    $default  reduce usando la regla 5 (dataTerm)

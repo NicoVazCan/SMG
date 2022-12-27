@@ -14,15 +14,15 @@
 
 struct sm_VActs
 {
-  size_t len;
-  unsigned int *vActs;
+  const size_t len;
+  const unsigned int *vActs;
 };
 
 struct sm_ArcTable
 {
-  struct sm_VActs *pArcs;
-  unsigned int *col_i;
-  unsigned int *row_i;
+  const struct sm_VActs *pArcs;
+  const unsigned int *col_i;
+  const unsigned int *row_i;
 };
 
 
@@ -102,7 +102,7 @@ void sm_closePipeline(struct sm_Pipeline **sm_ppPl);
 void sm_innerLoop
 (
   size_t sm_n,
-  sm_State *vvStates[static sm_n],
+  sm_State const *vvStates[static sm_n],
   struct sm_Insts *sm_vpInsts[static sm_n],
   struct sm_Pipeline *sm_pl
 );

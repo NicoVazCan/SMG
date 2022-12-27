@@ -1,21 +1,12 @@
-BUILD = debug
-cflags.release = -O3
-cflags.debug = -O0 -g
 
-CC = gcc
-LEX = flex
-YACC = bison
+all:
+	make -C src all
+	mv src/smg  .
 
-CFLAGS  = $(cflags.$(BUILD)) -I include -I .
-LDFLAGS = -Lfl -Ly
-YFLAGS  = -yd
-
-all: src/smg build
-
-src/smg: src/parser.o src/scanner.o src/terms.o
-
-build:
-	mv src/smg .
+test: all
+	cp smg test/
+	make -C test all
 
 clean:
-	rm src/*.o y.tab.h *.c *.h
+	make -C src clean
+	make -C test clean

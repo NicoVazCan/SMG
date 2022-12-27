@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 
-enum IdTerm
+enum IdTm
 {
   DATA_TM,
   STATE_TM,
@@ -11,7 +11,6 @@ enum IdTerm
   ARC_TM,
   IMPORT_TM,
   CODE_TM,
-  EXT_TM
 };
 
 struct Ids
@@ -20,10 +19,15 @@ struct Ids
   struct Ids *next;
 };
 
-struct ExtTm
+struct Tm
 {
   union
   {
+    struct CodeTm
+    {
+      char *code;
+    } codeTm;
+
     struct DataTm
     {
       char *code;
@@ -53,26 +57,9 @@ struct ExtTm
     {
       char *id;
     } importTm;
-  } extTm;
-
-  enum IdTerm id;
-};
-
-struct ExtTms
-{
-  struct ExtTm *pExtTm;
-  struct ExtTms *next;
-};
-
-struct Tm
-{
-  union
-  {
-    char* code;
-    struct ExtTms *pExtTms;
   } tm;
 
-  enum IdTerm id;
+  enum IdTm id;
 };
 
 struct Tms

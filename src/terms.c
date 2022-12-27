@@ -10,29 +10,96 @@
   else { perror("No se pudo alojar " #v); exit(EXIT_FAILURE); } \
 }
 
-struct sm_Deps
+static _Bool strempty(const char *s)
+{
+  const char *ecs = " \t\r\n\b";
+  _Bool allEmpty = 1;
+
+  for (const char *ps = s; allEmpty && *ps != '\0'; ++ps)
+    for (const char *pe = ecs; allEmpty && *pe != *ps; ++pe)
+      allEmpty = *pe != '\0';
+
+  return allEmpty;
+}
+
+struct Deps
 {
   char *name;
-  struct sm_Deps *next;
+  struct Deps *next;
 };
 
-static int depcmp(struct sm_Deps *deps0, struct sm_Deps *deps1)
+static int depcmp(struct Deps *deps0, struct Deps *deps1)
 {
   return strcmp(deps0->name, deps1->name);
 }
 
+struct States
+{
+  struct StateTm tm;
+  unsigned int id;
+  _Bool def;
+  struct States *next;
+};
+
+static int statecmp(struct States *state0, struct States *state1)
+{
+  return strcmp(state0->tm.id, state1->tm.id);
+}
+
+enum Efect
+{
+  INIT, NORM, DEST
+};
+
+struct Acts
+{
+  struct ActTm tm;
+  unsigned int id;
+  _Bool def, used;
+  enum Efect efect;
+  struct Acts *next;
+};
+
+static int actcmp(struct Acts *act0, struct Acts *act1)
+{
+  return strcmp(act0->tm.id, act1->tm.id);
+}
+
+struct Arcs
+{
+  unsigned int id0, id1;
+  struct Arcs *next;
+};
+
+static int arccmp(struct Arcs *arc0, struct Arcs *arc1)
+{
+  return arc0->id0 == arc1->id0?
+         (arc0->id1 == arc1->id1? 0: arc0->id1 > arc1->id1? 1: -1):
+         arc0->id0 > arc1->id0? 1: -1;
+}
+
 int terms_eval(struct Tms *pTms, unsigned int sm_id, char *sm_name, FILE *sm_h, FILE *sm_c)
 {
-  struct sm_Deps *deps = NULL, *elemDeps = NULL, *memberDeps = NULL, valueDeps;
+  struct Deps *deps = NULL, *elemDeps = NULL, *memberDeps = NULL, valueDeps;
+  unsigned int stateId = 1;
+  struct States *states = NULL, *elemStates = NULL, *memberStates = NULL, *memberStates0 = NULL, valueStates = {.def=0, .next=NULL};
+  unsigned int actId = 0;
+  struct Acts *acts = NULL, *elemActs = NULL, *memberActs = NULL, valueActs = {.def=0, .used=0, .efect=NORM, .next=NULL};
+  struct Arcs *arcs = NULL, *elemArcs = NULL, *memberArcs = NULL, valueArcs;
+  enum Efect efect;
+  unsigned int nActs, prevRow, colPos;
+  _Bool found = 0, emptyArgs;
 
   fprintf(
     sm_h,
     "#ifndef SM_ID_%s\n"
     "#define SM_ID_%s %d\n"
     "\n"
-    "#include \"sm_lib.h\"\n"
+    "#include <sm_lib.h>\n"
+    "#include <stdlib.h>\n"
+    "#include <stdio.h>\n"
     "\n"
-    "extern sm_State sm_vStates_%s[];\n"
+    "extern const sm_State sm_vStates_%s[];\n"
     "\n",
     sm_name,
     sm_name,
@@ -42,7 +109,7 @@ int terms_eval(struct Tms *pTms, unsigned int sm_id, char *sm_name, FILE *sm_h, 
 
   fprintf(
     sm_c,
-    "#include <%s.h>\n"
+    "#include \"%s.h\"\n"
     "\n",
     sm_name
   );
@@ -56,145 +123,558 @@ int terms_eval(struct Tms *pTms, unsigned int sm_id, char *sm_name, FILE *sm_h, 
       switch (memberTms->pTm->id)
       {
       case CODE_TM:
-        fprintf(sm_c, "%s", memberTms->pTm->tm.code);
+        fprintf(sm_c, "%s", memberTms->pTm->tm.codeTm.code);
+        break;
+      case DATA_TM:
+        fprintf(
+          sm_h,
+          "struct %s\n"
+          "{%s};\n"
+          "\n",
+          sm_name,
+          memberTms->pTm->tm.dataTm.code
+        );
         break;
 
-      case EXT_TM:
-        SGLIB_LIST_MAP_ON_ELEMENTS(
-          struct ExtTms,
-          memberTms->pTm->tm.pExtTms,
-          memberExtTms,
+      case STATE_TM:
+        valueStates.id = stateId++;
+        valueStates.tm = memberTms->pTm->tm.stateTm;
+        valueStates.def = 1;
+
+        SGLIB_SORTED_LIST_FIND_MEMBER(
+          struct States,
+          states,
+          &valueStates,
+          statecmp,
           next,
+          memberStates
+        );
+
+        if (memberStates != NULL)
+        {
+          if (memberStates->def)
           {
-            switch (memberExtTms->pExtTm->id)
+            printf(
+              "Aviso: Sobrescrito el estado '%s'\n",
+              memberTms->pTm->tm.stateTm.id
+            );
+            valueStates.id = memberStates->id;
+          }
+          else stateId--;
+
+          *memberStates = valueStates;
+          valueStates.def = 0;
+        }
+        else
+        {
+          TRY_ALLOC(struct States, elemStates, valueStates);
+          SGLIB_SORTED_LIST_ADD(
+            struct States,
+            states,
+            elemStates,
+            statecmp,
+            next
+          );
+        }
+        break;
+
+      case ACT_TM:
+        valueActs.id = actId++;
+        valueActs.tm = memberTms->pTm->tm.actTm;
+        valueActs.def = 1;
+
+        SGLIB_SORTED_LIST_FIND_MEMBER(
+          struct Acts,
+          acts,
+          &valueActs,
+          actcmp,
+          next,
+          memberActs
+        );
+
+        if (memberActs != NULL)
+        {
+          if (memberActs->def)
+          {
+            printf(
+              "Aviso: Sobrescrita la acción '%s'\n",
+              memberTms->pTm->tm.actTm.id
+            );
+            valueActs.id = memberActs->id;
+          }
+          else actId--;
+
+          *memberActs = valueActs;
+          valueActs.def = 0;
+        }
+        else
+        {
+          TRY_ALLOC(struct Acts, elemActs, valueActs);
+          SGLIB_SORTED_LIST_ADD(struct Acts, acts, elemActs, actcmp, next);
+        }
+        break;
+
+      case ARC_TM:
+        efect = memberTms->pTm->tm.arcTm.id0 == NULL? INIT:
+                memberTms->pTm->tm.arcTm.id1 == NULL? DEST:
+                NORM;
+
+        if (memberTms->pTm->tm.arcTm.id0 != NULL)
+        {
+          valueStates.id = stateId++;
+          valueStates.tm.id = memberTms->pTm->tm.arcTm.id0;
+
+          SGLIB_SORTED_LIST_FIND_MEMBER(
+            struct States,
+            states,
+            &valueStates,
+            statecmp,
+            next,
+            memberStates
+          );
+
+          if (memberStates != NULL)
+            stateId--;
+          else
+          {
+            TRY_ALLOC(struct States, memberStates, valueStates);
+            SGLIB_SORTED_LIST_ADD(
+              struct States,
+              states,
+              memberStates,
+              statecmp,
+              next
+            );
+          }
+        }
+
+        if (memberTms->pTm->tm.arcTm.id1 != NULL)
+        {
+          valueStates.id = stateId++;
+          valueStates.tm.id = memberTms->pTm->tm.arcTm.id1;
+
+          SGLIB_SORTED_LIST_FIND_MEMBER(
+            struct States,
+            states,
+            &valueStates,
+            statecmp,
+            next,
+            memberStates0
+          );
+
+          if (memberStates0 != NULL)
+            stateId--;
+          else
+          {
+            TRY_ALLOC(struct States, memberStates0, valueStates);
+            SGLIB_SORTED_LIST_ADD(
+              struct States,
+              states,
+              memberStates0,
+              statecmp,
+              next
+            );
+          }
+        }
+
+        switch (efect)
+        {
+        case INIT:
+          valueArcs = ((struct Arcs) {0, memberStates0->id, NULL});
+          break;
+        case NORM:
+          valueArcs = ((struct Arcs) {memberStates->id, memberStates0->id, NULL});
+          break;
+        case DEST:
+          valueArcs = ((struct Arcs) {memberStates->id, 0, NULL});
+          break;
+        }
+
+        SGLIB_SORTED_LIST_IS_MEMBER(
+          struct Arcs,
+          arcs,
+          &valueArcs,
+          arccmp,
+          next,
+          found
+        );
+
+        if (found)
+        {
+          printf(
+            "Aviso: Ignorada sobrescritura del arco '%s->%s'\n",
+            memberTms->pTm->tm.arcTm.id0 != NULL?
+              memberTms->pTm->tm.arcTm.id0: "",
+            memberTms->pTm->tm.arcTm.id1 != NULL?
+              memberTms->pTm->tm.arcTm.id1: ""
+          );
+        }
+        else
+        {
+          TRY_ALLOC(struct Arcs, memberArcs, valueArcs);
+          SGLIB_SORTED_LIST_ADD(struct Arcs, arcs, memberArcs, arccmp, next)
+
+          fprintf(
+            sm_c,
+            "static const unsigned int sm_acts_%d_%d[] = {\n",
+            valueArcs.id0,
+            valueArcs.id1
+          );
+
+          memberStates = memberStates0 = NULL;
+          nActs = 0;
+
+          SGLIB_LIST_MAP_ON_ELEMENTS(
+            struct Ids,
+            memberTms->pTm->tm.arcTm.pActs,
+            memberIds,
+            next,
             {
-            case DATA_TM:
-              fprintf(
-                sm_h,
-                "struct %s\n"
-                "{%s};\n"
-                "\n",
-                sm_name,
-                memberExtTms->pExtTm->extTm.dataTm.code
-              );
-              break;
-
-            case STATE_TM:
-              fprintf(
-                sm_c,
-                "static void %s\n"
-                "(\n"
-                "  struct sm_Inst *sm_pInst,\n"
-                "  size_t sm_nInst,\n"
-                "  struct sm_Insts *sm_vpInsts[static sm_nInst]\n"
-                ")\n"
-                "{%s}\n"
-                "\n",
-                memberExtTms->pExtTm->extTm.stateTm.id,
-                memberExtTms->pExtTm->extTm.stateTm.code
-              );
-              break;
-
-            case ACT_TM:
-              fprintf(
-                sm_h,
-                "void %s(struct sm_Inst *sm_pInst, %s);\n"
-                "\n",
-                memberExtTms->pExtTm->extTm.actTm.id,
-                memberExtTms->pExtTm->extTm.actTm.args
-              );
-              fprintf(
-                sm_c,
-                "void %s(struct sm_Inst *sm_pInst, %s)\n"
-                "{\n"
-                "  struct %s *sm_this = sm_pInst->pdata;\n"
-                "  unsigned int next;\n"
-                "\n"
-                "  if (!sm_next_state(&tb, sm_pInst->state, 0, &next))\n"
-                "    sm_pInst->state = next;\n"
-                "  else return;\n"
-                "\n"
-                "%s"
-                "\n"
-                "  sm_pInst->pdata = sm_this;\n"
-                "}\n"
-                "\n",
-                memberExtTms->pExtTm->extTm.actTm.id,
-                memberExtTms->pExtTm->extTm.actTm.args,
-                sm_name,
-                memberExtTms->pExtTm->extTm.actTm.code
-              );
-              break;
-
-            case ARC_TM:
-              /*
-              if (memberExtTms->pExtTm->extTm.arcTm.id0 != NULL)
-                free(memberExtTms->pExtTm->extTm.arcTm.id0);
-
-              if (memberExtTms->pExtTm->extTm.arcTm.id1 != NULL)
-                free(memberExtTms->pExtTm->extTm.arcTm.id1);
-
-              SGLIB_LIST_MAP_ON_ELEMENTS(
-                struct Ids,
-                memberExtTms->pExtTm->extTm.arcTm.pActs,
-                memberIds,
-                next,
-                {
-                  free(memberIds->id);
-                  memberIds->id = NULL;
-                  free(memberIds);
-                }
-              );*/
-              break;
-
-            case IMPORT_TM:
-              fprintf(
-                sm_h,
-                "\n"
-                "#include <%s.h>"
-                "\n", 
-                memberExtTms->pExtTm->extTm.importTm.id
-              );
-
-              valueDeps =
-                ((struct sm_Deps) {memberExtTms->pExtTm->extTm.importTm.id, NULL});
+              valueActs.id = actId++;
+              valueActs.tm.id = memberIds->id;
 
               SGLIB_SORTED_LIST_FIND_MEMBER(
-                struct sm_Deps,
-                deps,
-                &valueDeps,
-                depcmp,
+                struct Acts,
+                acts,
+                &valueActs,
+                actcmp,
                 next,
-                memberDeps
+                memberActs
               );
 
-              if (memberDeps == NULL)
+              if (memberActs != NULL)
               {
-                TRY_ALLOC(struct sm_Deps, elemDeps, valueDeps);
-
-                SGLIB_SORTED_LIST_ADD(struct sm_Deps, deps, elemDeps, depcmp, next);
+                actId--;
               }
-              break;
+              else
+              {
+                TRY_ALLOC(struct Acts, memberActs, valueActs);
+                SGLIB_SORTED_LIST_ADD(
+                  struct Acts,
+                  acts,
+                  memberActs,
+                  actcmp,
+                  next
+                );
+              }
+              memberActs->used = 1;
+              memberActs->efect = efect;
 
-            default:
               fprintf(
-                stderr, "Id de término '%d' no reconocido.\n",
-                memberExtTms->pExtTm->id
+                sm_c,
+                "  %d,\n",
+                memberActs->id
               );
-              abort();
+
+              nActs++;
             }
-          }
+          );
+
+          fprintf(
+            sm_c,
+            "};\n"
+            "static const struct sm_VActs sm_vActs_%d_%d = {\n"
+            "  %d,\n"
+            "  sm_acts_%d_%d\n"
+            "};\n"
+            "\n",
+            valueArcs.id0,
+            valueArcs.id1,
+            nActs,
+            valueArcs.id0,
+            valueArcs.id1
+          );
+
+        }
+        break;
+
+      case IMPORT_TM:
+        fprintf(
+          sm_h,
+          "\n"
+          "#include \"%s.h\""
+          "\n", 
+          memberTms->pTm->tm.importTm.id
         );
+
+        valueDeps =
+          ((struct Deps) {memberTms->pTm->tm.importTm.id, NULL});
+
+        SGLIB_SORTED_LIST_FIND_MEMBER(
+          struct Deps,
+          deps,
+          &valueDeps,
+          depcmp,
+          next,
+          memberDeps
+        );
+
+        if (memberDeps == NULL)
+        {
+          TRY_ALLOC(struct Deps, elemDeps, valueDeps);
+
+          SGLIB_SORTED_LIST_ADD(struct Deps, deps, elemDeps, depcmp, next);
+        }
         break;
 
       default:
-        fprintf(stderr,
-          "Id de término '%d' no reconocido.\n",
+        fprintf(
+          stderr, "Id de término '%d' no reconocido.\n",
           memberTms->pTm->id
         );
         abort();
-      }
+      }     
     }
+  );
+
+  fprintf(sm_c,
+    "static const struct sm_VActs sm_vArcs[] = {\n"
+  );
+  SGLIB_SORTED_LIST_MAP_ON_ELEMENTS(
+    struct Arcs,
+    arcs,
+    memberArcs,
+    next,
+    {
+      fprintf(sm_c,
+        "  sm_vActs_%d_%d,\n",
+        memberArcs->id0,
+        memberArcs->id1
+      );
+    }
+  );
+  fprintf(sm_c,
+    "};\n"
+  );
+
+  fprintf(sm_c,
+    "static const unsigned int sm_col_i[] = {\n"
+  );
+  SGLIB_SORTED_LIST_MAP_ON_ELEMENTS(
+    struct Arcs,
+    arcs,
+    memberArcs,
+    next,
+    {
+      fprintf(sm_c,
+        "  %d,\n",
+        memberArcs->id1
+      );
+    }
+  );
+  fprintf(sm_c,
+    "}, sm_row_i[] = {\n"
+  );
+
+
+  if (arcs != NULL)
+  {
+    prevRow = arcs->id0;
+    colPos = 0;
+
+    fprintf(sm_c,
+      "  %d,\n",
+      colPos
+    );
+    SGLIB_SORTED_LIST_MAP_ON_ELEMENTS(
+      struct Arcs,
+      arcs->next,
+      memberArcs,
+      next,
+      {
+        if (prevRow < memberArcs->id0)
+        {
+          fprintf(sm_c,
+            "  %d,\n",
+            ++colPos
+          );
+          prevRow = memberArcs->id0;
+        }
+      }
+    );
+    fprintf(sm_c,
+      "  %d\n",
+      colPos+1
+    );
+  }
+  fprintf(sm_c,
+    "};\n"
+    "static const struct sm_ArcTable sm_tb = {sm_vArcs, sm_col_i, sm_row_i};\n"
+    "\n"
+    "\n"
+  );
+
+
+  SGLIB_SORTED_LIST_MAP_ON_ELEMENTS(
+    struct Acts,
+    acts,
+    memberActs,
+    next,
+    {
+      if (memberActs->def)
+      {
+        if (!memberActs->used)
+          fprintf(
+            stderr,
+            "Aviso: acción '%s' definida pero no usada\n",
+            memberActs->tm.id
+          );
+
+        emptyArgs = strempty(memberActs->tm.args);
+
+        fprintf(
+          sm_h,
+          "void %s(struct sm_Inst *sm_this%s%s);\n"
+          "\n",
+          memberActs->tm.id,
+          emptyArgs? "": ", ",
+          emptyArgs? "": memberActs->tm.args
+        );
+
+        fprintf(
+          sm_c,
+          "void %s(struct sm_Inst *sm_this%s%s)\n"
+          "{\n"
+          "  if (sm_this == NULL)\n"
+          "  {\n"
+          "    fprintf(stderr, \"Aviso: instancia sin crear\"); return;\n"
+          "  }\n"
+          "\n"
+          "  unsigned int sm_next;\n"
+          "\n"
+          "  if (!sm_next_state(&sm_tb, sm_this->state, %d, &sm_next))\n"
+          "    sm_this->state = sm_next;\n"
+          "  else\n"
+          "  {\n"
+          "    fprintf(stderr, \"Aviso: acción no procedente en estado actual\");"
+          "    return;\n"
+          "  }\n"
+          "\n",
+          memberActs->tm.id,
+          emptyArgs? "": ", ",
+          emptyArgs? "": memberActs->tm.args,
+          memberActs->id
+        );
+
+        if (memberActs->efect == INIT)
+          fprintf(
+            sm_c,
+            "  if (sm_this->pdata != NULL)\n"
+            "  {\n"
+            "    fprintf(stderr, \"Aviso: acción inicial ya realizada\"); return;\n"
+            "  }\n"
+            "  else if ((sm_this->pdata = malloc(sizeof(struct %s))) == NULL)\n"
+            "  {\n"
+            "    perror(\"Aviso: No se pudo realizar acción inicial\"); return;\n"
+            "  }\n"
+            "\n",
+            sm_name
+          );
+
+        fprintf(
+          sm_c,
+          "  if (sm_this->pdata == NULL)\n"
+          "  {\n"
+          "    fprintf(stderr, \"Aviso: realize la acćión inicial antes\");\n"
+          "    return;\n"
+          "  }\n"
+          "\n"
+          "%s",
+          memberActs->tm.code
+        );
+
+        if (memberActs->efect == DEST)
+          fprintf(
+            sm_c,
+            "\n"
+            "  free(sm_this->pdata);\n"
+            "  sm_this->pdata = NULL;\n"
+          );
+
+        fprintf(
+          sm_c,
+          "}\n"
+          "\n"
+        );
+      }
+      else
+        fprintf(
+          stderr,
+          "Aviso: acción '%s' declarada pero no definida\n",
+          memberActs->tm.id
+        );
+    }
+  );
+
+  SGLIB_SORTED_LIST_MAP_ON_ELEMENTS(
+    struct States,
+    states,
+    memberStates,
+    next,
+    {
+      if(memberStates->def)
+      {
+        fprintf(
+          sm_c,
+          "static void sm_%s\n"
+          "(\n"
+          "  struct sm_Inst *sm_this,\n"
+          "  size_t sm_nInst,\n"
+          "  struct sm_Insts *sm_vpInsts[static sm_nInst]\n"
+          ")\n"
+          "{\n"
+          "  if (sm_this == NULL)\n"
+          "  {\n"
+          "    fprintf(stderr, \"Aviso: instancia sin crear\"); return;\n"
+          "  }\n"
+          "\n"
+          "%s"
+          "}\n"
+          "\n",
+          memberStates->tm.id,
+          memberStates->tm.code
+        );
+
+        fprintf(
+          sm_h,
+          "#define SM_STATE_%s %d\n"
+          "\n",
+          memberStates->tm.id,
+          memberStates->id
+        );
+      }
+      else
+        fprintf(
+          stderr,
+          "Aviso: estado '%s' declarado pero no definido\n",
+          memberStates->tm.id
+        );
+    }
+  );
+
+  fprintf(
+    sm_c,
+    "const sm_State sm_vStates_sm0[] = {\n"
+  );
+
+  SGLIB_SORTED_LIST_MAP_ON_ELEMENTS(
+    struct States,
+    states,
+    memberStates,
+    next,
+    {
+      fprintf(
+        sm_c,
+        "  sm_%s,\n",
+        memberStates->tm.id
+      );
+    }
+  );
+
+  fprintf(
+    sm_c,
+    "};\n"
+    "\n"
   );
 
   fprintf(sm_h, "\n");
@@ -205,7 +685,7 @@ int terms_eval(struct Tms *pTms, unsigned int sm_id, char *sm_name, FILE *sm_h, 
     fprintf(sm_h, "#define SM_DEP_%s 1 \\\n", sm_name);
 
     SGLIB_SORTED_LIST_MAP_ON_ELEMENTS(
-      struct sm_Deps,
+      struct Deps,
       deps,
       elemDeps,
       next,
@@ -215,12 +695,36 @@ int terms_eval(struct Tms *pTms, unsigned int sm_id, char *sm_name, FILE *sm_h, 
       }
     );
   }
-  
+
   fprintf(
     sm_h,
     "\n"
     "#endif\n"
     "\n"
+  );
+
+  SGLIB_SORTED_LIST_MAP_ON_ELEMENTS(
+    struct States,
+    states,
+    memberStates,
+    next,
+    free(memberStates)
+  );
+
+  SGLIB_SORTED_LIST_MAP_ON_ELEMENTS(
+    struct Acts,
+    acts,
+    memberActs,
+    next,
+    free(memberActs)
+  );
+
+  SGLIB_SORTED_LIST_MAP_ON_ELEMENTS(
+    struct Arcs,
+    arcs,
+    memberArcs,
+    next,
+    free(memberArcs)
   );
 
   return 0;
@@ -237,83 +741,57 @@ void terms_free(struct Tms **ppTms)
       switch (memberTms->pTm->id)
       {
       case CODE_TM:
-        free(memberTms->pTm->tm.code); 
+        free(memberTms->pTm->tm.codeTm.code); 
+        break;
+      case DATA_TM:
+        free(memberTms->pTm->tm.dataTm.code);
         break;
 
-      case EXT_TM:
+      case STATE_TM:
+        free(memberTms->pTm->tm.stateTm.id);
+        free(memberTms->pTm->tm.stateTm.code);
+        break;
+
+      case ACT_TM:
+        free(memberTms->pTm->tm.actTm.id);
+        free(memberTms->pTm->tm.actTm.args);
+        free(memberTms->pTm->tm.actTm.code);
+        break;
+
+      case ARC_TM:
+        if (memberTms->pTm->tm.arcTm.id0 != NULL)
+          free(memberTms->pTm->tm.arcTm.id0);
+
+        if (memberTms->pTm->tm.arcTm.id1 != NULL)
+          free(memberTms->pTm->tm.arcTm.id1);
+
         SGLIB_LIST_MAP_ON_ELEMENTS(
-          struct ExtTms,
-          memberTms->pTm->tm.pExtTms,
-          memberExtTms,
+          struct Ids,
+          memberTms->pTm->tm.arcTm.pActs,
+          memberIds,
           next,
           {
-            switch (memberExtTms->pExtTm->id)
-            {
-            case DATA_TM:
-              free(memberExtTms->pExtTm->extTm.dataTm.code);
-              break;
-
-            case STATE_TM:
-              free(memberExtTms->pExtTm->extTm.stateTm.id);
-              free(memberExtTms->pExtTm->extTm.stateTm.code);
-              break;
-
-            case ACT_TM:
-              free(memberExtTms->pExtTm->extTm.actTm.id);
-              free(memberExtTms->pExtTm->extTm.actTm.args);
-              free(memberExtTms->pExtTm->extTm.actTm.code);
-              break;
-
-            case ARC_TM:
-              if (memberExtTms->pExtTm->extTm.arcTm.id0 != NULL)
-                free(memberExtTms->pExtTm->extTm.arcTm.id0);
-
-              if (memberExtTms->pExtTm->extTm.arcTm.id1 != NULL)
-                free(memberExtTms->pExtTm->extTm.arcTm.id1);
-
-              SGLIB_LIST_MAP_ON_ELEMENTS(
-                struct Ids,
-                memberExtTms->pExtTm->extTm.arcTm.pActs,
-                memberIds,
-                next,
-                {
-                  free(memberIds->id);
-                  memberIds->id = NULL;
-                  free(memberIds);
-                }
-              );
-              break;
-
-            case IMPORT_TM:
-              free(memberExtTms->pExtTm->extTm.importTm.id);
-              break;
-
-            default:
-              fprintf(
-                stderr, "Id de término '%d' no reconocido.\n",
-                memberExtTms->pExtTm->id
-              );
-              abort();
-            }
-
-            free(memberExtTms->pExtTm);
-            memberExtTms->pExtTm = NULL;
-            free(memberExtTms);
+            free(memberIds->id);
+            memberIds->id = NULL;
+            free(memberIds);
           }
         );
         break;
 
+      case IMPORT_TM:
+        free(memberTms->pTm->tm.importTm.id);
+        break;
+
       default:
-        fprintf(stderr,
-          "Id de término '%d' no reconocido.\n",
+        fprintf(
+          stderr, "Id de término '%d' no reconocido.\n",
           memberTms->pTm->id
         );
         abort();
       }
 
-      free(memberTms->pTm); 
+      free(memberTms->pTm);
       memberTms->pTm = NULL;
-
       free(memberTms);
     }
   );

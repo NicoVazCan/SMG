@@ -1,0 +1,69 @@
+#include <stdio.h>
+
+$
+import sm1
+
+data
+${
+  int i;
+  int maxi0, maxi1;
+$}
+
+state waitSm1
+${
+  struct sm_Inst sm1 = sm_vpInsts[SM_ID_sm1]->inst;
+
+  if (sm1.state == SM_STATE_done)
+    $sm_this$->act_sm0$($&sm1$->sm1.maxi0, $&sm1$->sm1.maxi1 $);
+$}
+
+state state0
+${
+  printf("sm0: state0: i=%d\n", $sm_this$->sm0.i);
+  if (($sm_this$->sm0.i++) > 5)
+    $sm_this$->act0_sm0$($);
+$}
+
+state state1
+${
+  printf("sm0: state1: i=%d\n", $sm_this$->sm0.i);
+  if (($sm_this$->sm0.i++) > 5)
+  {
+    $sm_this$->close_sm0$($);
+    sm_destroy(sm_nInst, sm_vpInsts, SM_ID_sm0, sm_this);
+  }
+$}
+
+act init_sm0 $( $)
+${
+  $sm_this$->sm0.i = 0;
+  printf("sm0: init_sm0: i=%d\n", $sm_this$->sm0.i);
+$}
+
+act act_sm0 $(int maxi0, int maxi1$)
+${
+  $sm_this$->sm0.maxi0 = maxi0;
+  $sm_this$->sm0.maxi1 = maxi1;
+  printf("sm0: act_sm0: i=%d\n", $sm_this$->sm0.i);
+$}
+
+act act0_sm0 $( $)
+${
+  $sm_this$->sm0.i = 0;
+  printf("sm0: act0_sm0: i=%d\n", $sm_this$->sm0.i);
+$}
+
+act close_sm0 $( $)
+${
+  $sm_this$->sm0.i = 0;
+  printf("sm0: close_sm0: i=%d\n", $sm_this$->sm0.i);
+$}
+
+-> state0 $[init_sm0$]
+
+waitSm1 -> state0 $[act_sm0$]
+
+state0 -> state1 $[act0_sm0$]
+
+state1 -> $[close_sm0$]
+$
