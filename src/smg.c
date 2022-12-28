@@ -252,7 +252,7 @@ int main(int argc, char const *argv[])
     next,
     {
       yyin = elem->sm;
-      yyparse(&pTms);
+      yyparse(&pTms, elem->name);
       terms_eval(pTms, sm_id, elem->name, elem->h, elem->c);
       terms_free(&pTms);
       sm_id++;

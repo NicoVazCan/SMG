@@ -9,6 +9,25 @@
   if (((s) = strdup(s)) == NULL) \
     { perror("No se pudo duplicar el string " #s); exit(EXIT_FAILURE); } \
 }
+#define UPDT_LOC \
+{ \
+    yylloc.first_line = yylloc.last_line; \
+    yylloc.first_column = yylloc.last_column; \
+    yylloc.last_line += strnchr(yytext, '\n'); \
+    yylloc.last_column = yylloc.first_line == yylloc.last_line? \
+      yylloc.last_column+yyleng: 0; \
+}
+
+static size_t strnchr(const char *s, char f)
+{
+  size_t n = 0;
+
+  for (const char *pc = s; *pc != '\0'; ++pc)
+    if (*pc == f) ++n;
+
+  return n;
+}
+
 %}
 
 spa     [ \t\r\n\b]
@@ -45,32 +64,32 @@ id      {letter}{letdig}*
 }
 
 
-<E>{data}     return DATA;
-<E>{state}    return STATE;
-<E>{act}      return ACT;
-<E>{import}   return IMPORT;
-<E>{arrow}    return ARROW;
-<E>{comma}    return COMMA;
-<E>"$("       BEGIN(C); return BEG_ARGS;
-<E>"${"       BEGIN(C); return BEG_CODE;
-<E>"$["       return BEG_LIST;
-<E>"$]"       return END_LIST;
-<E>{digit}    yylval.d = atoi(yytext); return DIGIT;
-<E>{id}       yylval.s = yytext; TRY_STRDUP(yylval.s); return ID;
+<E>{data}     UPDT_LOC; return DATA;
+<E>{state}    UPDT_LOC; return STATE;
+<E>{act}      UPDT_LOC; return ACT;
+<E>{import}   UPDT_LOC; return IMPORT;
+<E>{arrow}    UPDT_LOC; return ARROW;
+<E>{comma}    UPDT_LOC; return COMMA;
+<E>"$("       UPDT_LOC; BEGIN(C); return BEG_ARGS;
+<E>"${"       UPDT_LOC; BEGIN(C); return BEG_CODE;
+<E>"$["       UPDT_LOC; return BEG_LIST;
+<E>"$]"       UPDT_LOC;return END_LIST;
+<E>{digit}    UPDT_LOC; yylval.d = atoi(yytext); return DIGIT;
+<E>{id}       UPDT_LOC; yylval.s = yytext; TRY_STRDUP(yylval.s); return ID;
 
-<E>"$"        BEGIN(INITIAL); return END_EXT;
+<E>"$"        UPDT_LOC; BEGIN(INITIAL); return END_EXT;
 
-<E>{com}|{spa}+
-
-<E>(.|"\n")   {
-  fprintf(stderr, "Error léxico: token \"%s\" no reconocido\n", yytext); 
-  exit(EXIT_FAILURE);
+<E>{com}|{spa}+ {
+  UPDT_LOC;
 }
 
+<E>(.|"\n")   UPDT_LOC; yylval.s = yytext; TRY_STRDUP(yylval.s); return ERROR;
 
-<C>"$)"       BEGIN(E); return END_ARGS;
-<C>"$}"       BEGIN(E); return END_CODE;
+
+<C>"$)"       UPDT_LOC; BEGIN(E); return END_ARGS;
+<C>"$}"       UPDT_LOC; BEGIN(E); return END_CODE;
 <C>"$"([^)}][^$]*)?"$" {
+  UPDT_LOC;
   BEGIN(M);
   yylval.s = yytext+1;
   TRY_STRDUP(yylval.s);
@@ -78,26 +97,34 @@ id      {letter}{letdig}*
   return CODE;
 }
 
-<C>[^$]*      yylval.s = yytext; TRY_STRDUP(yylval.s); return CODE;
+<C>[^$]*      UPDT_LOC; yylval.s = yytext; TRY_STRDUP(yylval.s); return CODE;
 
 <C>{str}|{com}|{spa}+ {
+  UPDT_LOC;
   yymore();
 }
 
+<C>(.|"\n")   UPDT_LOC; yylval.s = yytext; TRY_STRDUP(yylval.s); return ERROR;
+
 
 <M>{arrow}{id} {
+  UPDT_LOC;
   yylval.s = yytext+2; TRY_STRDUP(yylval.s); return ID;
 }
 <M>{dot}{id} {
+  UPDT_LOC;
   BEGIN(C); yylval.s = yytext+1; TRY_STRDUP(yylval.s); return ID;
 }
 <M>"$("([^$][^)]|"$"[^)]|[^$]")")*(.|"\n")?"$)" {
+  UPDT_LOC;
   BEGIN(C);
   yylval.s = yytext+2;
   TRY_STRDUP(yylval.s);
   yylval.s[yyleng-4] = '\0';
   return CODE;
 }
+
+<M>(.|"\n")   UPDT_LOC; yylval.s = yytext; TRY_STRDUP(yylval.s); return ERROR;
 
 %%
 

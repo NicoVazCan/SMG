@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "y.tab.h"
 #include "terms.h"
 
 #define TRY_ALLOC(type, p, v) \
@@ -24,8 +25,18 @@ static _Bool strempty(const char *s)
   return allEmpty;
 }
 
+static void print_loc(const char *file, YYLTYPE loc)
+{
+  printf( 
+    "%s.sm:%d:%d: ",
+    file,
+    loc.first_line,
+    loc.first_column
+  );
+}
+
 extern char yylex();
-void yyerror (struct Tms **, char const*);
+void yyerror (struct Tms **, char const*, char const*);
 %}
 
 %union{
@@ -39,12 +50,15 @@ void yyerror (struct Tms **, char const*);
 }
 
 %parse-param {struct Tms **pptms}
+%parse-param {const char *file}
+
+%locations
 
 %token DATA 0 STATE 1 ACT 2 ARROW 3 COMMA 4 IMPORT 5
 %token BEG_EXT 6 END_EXT 7 BEG_ARGS 8 END_ARGS 9
 %token BEG_CODE 10 END_CODE 11 BEG_LIST 12 END_LIST 13
-%token<s> CODE 14 ID 15
-%token<d> DIGIT 16
+%token<s> CODE 14 ID 15 ERROR 16
+%token<d> DIGIT 17
 %type<pTms> terms
 %type<pTm> term
 %type<pExtTm> extTerm dataTerm stateTerm actTerm
@@ -73,6 +87,7 @@ term :
   | BEG_EXT extTerms END_EXT {
       TRY_ALLOC(struct Tm, $<pTm>$, ((struct Tm) {{.pExtTms=$2}, EXT_TM}));
     }
+;
 
 extTerms :
     { $<pExtTms>$ = NULL; }
@@ -89,6 +104,12 @@ extTerm :
   | arcInitTerm { $<pExtTm>$ = $1; }
   | arcCloseTerm { $<pExtTm>$ =  $1; }
   | importTerm { $<pExtTm>$ = $1; }
+  | error {
+      print_loc(file, @1);
+      yyerror(NULL, NULL, "Fallo en extensión");
+      yyclearin;
+      return 1;
+    }
 ;
 
 codeTerm :
@@ -132,6 +153,12 @@ codeTerm :
 
       $<s>$ = m;
     }
+  | error {
+      print_loc(file, @1);
+      yyerror(NULL, NULL, "Caracter no valido en un método");
+      yyclearin;
+      return 1;
+    }
 ;
 
 codeTerms :
@@ -172,6 +199,18 @@ dataTerm :
         DATA_TM})
       );
     }
+  | DATA {
+      print_loc(file, @1);
+      yyerror(NULL, NULL, "falta ${ ... $} en data");
+      yyclearin;
+      YYERROR;
+    }
+  | DATA BEG_CODE BEG_CODE error END_CODE {
+      print_loc(file, @4);
+      yyerror(NULL, NULL, "token inesperado en ${ ... $} en data");
+      yyclearin;
+      YYERROR;
+    }
 ;
 
 stateTerm :
@@ -183,6 +222,18 @@ stateTerm :
         STATE_TM})
       );
     }
+  | STATE BEG_CODE codeTerms END_CODE {
+      print_loc(file, @1);
+      yyerror(NULL, NULL, "falta id en state");
+      yyclearin;
+      YYERROR;
+    }
+  | STATE ID {
+      print_loc(file, @1);
+      yyerror(NULL, NULL, "falta ${ ... $} en state");
+      yyclearin;
+      YYERROR;
+    }
 ;
 
 actTerm :
@@ -192,6 +243,30 @@ actTerm :
         $<pExtTm>$,
         ((struct ExtTm) {{.actTm={$2, $4, $7}}, ACT_TM})
       );
+    }
+  | ACT BEG_ARGS codeTerms END_ARGS BEG_CODE codeTerms END_CODE {
+      print_loc(file, @1);
+      yyerror(NULL, NULL, "falta id en act");
+      yyclearin;
+      YYERROR;
+    }
+  | ACT BEG_ARGS codeTerms END_ARGS {
+      print_loc(file, @1);
+      yyerror(NULL, NULL, "falta id en act");
+      yyclearin;
+      YYERROR;
+    }
+  | ACT ID BEG_CODE codeTerms END_CODE {
+      print_loc(file, @1);
+      yyerror(NULL, NULL, "falta $( ... $) en act");
+      yyclearin;
+      YYERROR;
+    }
+  | ACT ID BEG_ARGS codeTerms END_ARGS {
+      print_loc(file, @1);
+      yyerror(NULL, NULL, "falta ${ ... $} en act");
+      yyclearin;
+      YYERROR;
     }
 ;
 
@@ -203,6 +278,18 @@ arcTerm :
         ((struct ExtTm) {{.arcTm={$1, $3, $5}}, ARC_TM})
       );
     }
+  | ID ARROW ID BEG_LIST error END_LIST {
+      print_loc(file, @5);
+      yyerror(NULL, NULL, "fallo en ${ ... $} en ->");
+      yyclearin;
+      YYERROR;
+    }
+  | ID ARROW ID {
+      print_loc(file, @1);
+      yyerror(NULL, NULL, "falta ${ ... $} en ->");
+      yyclearin;
+      YYERROR;
+    }
 ;
 
 arcInitTerm :
@@ -212,6 +299,12 @@ arcInitTerm :
         $<pExtTm>$,
         ((struct ExtTm) {{.arcTm={NULL, $2, $4}}, ARC_TM})
       );
+    }
+  | ARROW ID BEG_LIST error END_LIST {
+      print_loc(file, @4);
+      yyerror(NULL, NULL, "fallo en ${ ... $} en ->");
+      yyclearin;
+      YYERROR;
     }
 ;
 
@@ -223,6 +316,12 @@ arcCloseTerm :
         ((struct ExtTm) {{.arcTm={$1, NULL, $4}}, ARC_TM})
       );
     }
+  | ID ARROW BEG_LIST error END_LIST {
+      print_loc(file, @4);
+      yyerror(NULL, NULL, "fallo en ${ ... $} en ->");
+      yyclearin;
+      YYERROR;
+    }
 ;
 
 importTerm :
@@ -233,14 +332,32 @@ importTerm :
         ((struct ExtTm) {{.importTm={$2}}, IMPORT_TM})
       );
     }
+  | IMPORT error {
+      print_loc(file, @2);
+      yyerror(NULL, NULL, "fallo en import");
+      yyclearin;
+      YYERROR;
+    }
 ;
 
 ids :
     ID COMMA ids {
       TRY_ALLOC(struct Ids, $<pIds>$, ((struct Ids){$1, $3}));
     }
+  | error COMMA ids {
+      print_loc(file, @1);
+      yyerror(NULL, NULL, "fallo en ids");
+      yyclearin;
+      YYERROR;
+    }
   | ID COMMA {
       TRY_ALLOC(struct Ids, $<pIds>$, ((struct Ids){$1, NULL}));
+    }
+  | error COMMA {
+      print_loc(file, @1);
+      yyerror(NULL, NULL, "fallo en ids");
+      yyclearin;
+      YYERROR;
     }
   | ID {
       TRY_ALLOC(struct Ids, $<pIds>$, ((struct Ids){$1, NULL}));
@@ -249,9 +366,8 @@ ids :
 
 %%
 
-void yyerror(struct Tms **pptms, char const *msg)
+void yyerror(struct Tms **pptms, const char *file, char const *msg)
 {
-  //if(strcmp(msg, "syntax error"))
-    fprintf(stderr, "%s\n", msg);
+  if(strcmp(msg, "syntax error")) puts(msg);
 }
 

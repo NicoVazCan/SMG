@@ -18,4 +18,4 @@ sm_loop.c:
 	./smg $(SRC_SM)
 
 clean:
-	rm test *.o sm_loop.c $(HEAD_SM)
+	rm smg test *.o sm_loop.c $(HEAD_SM)
