@@ -37,5 +37,8 @@ INSTRUCCIONES DE EJECUCIÓN
 
   El programa 'test' se ejecuta usa dos SMs, la primera pregunta si se quiere especificar uno o dos números, se debe responder con '1' o '2', en otro caso se preguntará de nuevo. Luego dependiendo de la opción escogida, se leerá uno o dos número, y finalmente la primera termina. Tras esto, la segunda SM itera el número de veces que se le haya pasado a la primera, y finamente itera de nuevo con el segundo número, que en el caso de solo haber especificado uno, será iterá de nuevo con el primero.
 
-HERRAMIENTAS ADICIONALES:
+HERRAMIENTAS ADICIONALES
   Para el desarrollo de la librería de utilidades para máquinas de estado finito ‘sm_lib.c’ y ‘sm_lib.h’, se ha usado la librería de estructuras de datos ‘SGLIB’ (https://github.com/stefanct/sglib) que entre otras cosas permite el manejo de listas de forma genérica mediante macros.
+
+INFORMACIÓN ADICIONAL
+  Cabe destacar que el programa y los ficheros código C que generan, no producen ningún leak de memoria. Se hizo free a todos los malloc, excepto a 3 malloc por culpa de FLEX o Bison.
