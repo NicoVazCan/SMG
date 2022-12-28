@@ -1,16 +1,21 @@
 CC = gcc
 
-CFLAGS  = -I ../include
+CFLAGS  = -I ../include -g
+
+SRC_SM=$(wildcard *.sm)
+
+OBJ_SM=$(SRC_SM:.sm=.o)
+HEAD_SM=$(SRC_SM:.sm=.h)
 
 all: test
 
-test: sm1.o sm0.o sm_lib.o sm_loop.o
+test: sm_loop.o sm_lib.o $(OBJ_SM)
+
+sm_loop.c:
+	./smg $(SRC_SM)
 
 %.c: %.sm
-	./smg *.sm
-
-%.h: %.sm
-	./smg *.sm
+	./smg $(SRC_SM)
 
 clean:
-	rm *.o sm_loop.c sm*.c sm*.h
+	rm test *.o sm_loop.c $(HEAD_SM)

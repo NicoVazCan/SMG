@@ -29,7 +29,6 @@ int main(int argc, char const *argv[])
   FILE *sm_loop = NULL, *sm = NULL, *h = NULL, *c = NULL;
   struct Files *files = NULL, *elem = NULL, value;
   struct Tms *pTms = NULL;
-  struct Tm *pTm = NULL;
   unsigned int sm_id = 0;
   
   {
@@ -253,7 +252,7 @@ int main(int argc, char const *argv[])
     next,
     {
       yyin = elem->sm;
-      yyparse(&pTm);
+      yyparse(&pTms);
       terms_eval(pTms, sm_id, elem->name, elem->h, elem->c);
       terms_free(&pTms);
       sm_id++;

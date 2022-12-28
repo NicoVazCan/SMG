@@ -13,9 +13,9 @@ ${
 
   scanf("%d", &d);
 
-  if(d)
+  if(d == 2)
     $sm_this$->dos$($);
-  else
+  else if (d == 1)
     $sm_this$->uno$($);
 
 $}
@@ -40,36 +40,15 @@ $}
 
 state done
 ${
-  close(sm_this);
+  $sm_this$->sm1_close$($);
   sm_destroy(sm_nInst, sm_vpInsts, SM_ID_sm1, sm_this);
-
-  $sm_this$->close$($);
 $}
 
-act init_sm1 $( $)
-${
-  printf("%s\n", __func__);
-$}
-
-act uno $( $)
-${
-  printf("%s\n", __func__);
-$}
-
-act dos $( $)
-${
-  printf("%s\n", __func__);
-$}
-
-act done $( $)
-${
-  printf("%s\n", __func__);
-$}
-
-act close $( $)
-${
-  printf("%s\n", __func__);
-$}
+act init_sm1 $($) ${$}
+act uno $($) ${$}
+act dos $($) ${$}
+act done $($) ${$}
+act sm1_close $($) ${$}
 
 -> unoOdos $[init_sm1$]
 
@@ -79,5 +58,5 @@ unoOdos -> dos $[dos$]
 uno -> done $[done$]
 dos -> done $[done$]
 
-done -> $[close$]
+done -> $[sm1_close$]
 $

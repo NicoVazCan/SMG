@@ -15,4 +15,4 @@ all: smg
 smg: parser.o scanner.o terms.o
 
 clean:
-	rm *.o y.tab.h
+	rm smg *.o y.tab.h

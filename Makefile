@@ -1,7 +1,7 @@
 
 all:
 	make -C src all
-	mv src/smg  .
+	cp src/smg  .
 
 test: all
 	cp smg test/
